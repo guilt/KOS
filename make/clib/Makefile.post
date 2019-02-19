@@ -1,0 +1,9 @@
+TARGET_CFLAGS+=-DPLAT=$(PLAT) -DARCH=$(ARCH) -I$(TARGET)/include -I$(TARGET)/include/$(PLAT) -I$(TARGET)/include/$(ARCH) $(PLAT_CFLAGS) $(ARCH_CFLAGS) $(C_DEFINES)
+TARGET_ASFLAGS+=-DPLAT=$(PLAT) -DARCH=$(ARCH) -I$(TARGET)/include -I$(TARGET)/include/$(PLAT) -I$(TARGET)/include/$(ARCH) $(PLAT_CFLAGS) $(ARCH_CFLAGS) $(C_DEFINES)
+TARGET_LDFLAGS+= $(ARCH_LDFLAGS)
+
+target:  $(clib_objs)
+
+target_clean:
+	$(RM) $(clib_objs)
+

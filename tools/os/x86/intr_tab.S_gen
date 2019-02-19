@@ -1,0 +1,87 @@
+#!/bin/sh
+
+ORIG_MASTER_OFFSET=0
+REMAP_MASTER_OFFSET=32
+MASTER_INT=0
+MASTER_MIN=$REMAP_MASTER_OFFSET
+MASTER_MAX=`expr $MASTER_MIN + 7`
+
+ORIG_SLAVE_OFFSET=112
+REMAP_SLAVE_OFFSET=40
+SLAVE_INT=8
+SLAVE_MIN=$REMAP_SLAVE_OFFSET
+SLAVE_MAX=`expr $SLAVE_MIN + 7`
+
+cat <<EOF
+#define ASM	1
+
+#include <intr.h>
+
+.text
+.align 8
+.extern hl_intr_handler_stub
+intr_handler_stub:
+_intr_handler_stub:
+	pusha
+
+	pushw %ds
+	pushw %es
+	pushw %fs
+	pushw %gs
+
+	movw \$(SEG_KERN_DATA_SEL), %ax
+	movw %ax,%ds
+	movw %ax,%es
+	movw %ax,%fs
+	movw %ax,%gs
+
+	call hl_intr_handler_stub
+
+	popw %gs
+	popw %fs
+	popw %es
+	popw %ds
+
+	popa
+	addl \$12, %esp
+	sti
+	iret
+EOF
+intr=0
+while [ $intr != 256 ] ; do
+	irq=$intr
+	if [ $intr -ge $MASTER_MIN -a $intr -le $MASTER_MAX ]; then
+		irq=`expr $intr + $MASTER_INT - $MASTER_MIN`
+	fi
+	if [ $intr -ge $SLAVE_MIN -a $intr -le $SLAVE_MAX ]; then
+		irq=`expr $intr + $SLAVE_INT - $SLAVE_MIN`
+	fi
+	echo isr_$intr:
+	echo _isr_$intr:
+	echo cli
+	echo pushl \$0
+	echo pushl \$$intr
+	echo pushl \$$irq
+	echo jmp intr_handler_stub
+	intr=`expr $intr + 1`
+done
+
+cat <<EOF
+.align 8
+intr_handlers_table:
+_intr_handlers_table:
+EOF
+
+intr=0
+while [ $intr != 256 ] ; do
+	echo .long isr_$intr
+	intr=`expr $intr + 1`
+done
+
+cat <<EOF
+.align 8
+.globl intr_handlers,_intr_handlers
+intr_handlers:
+_intr_handlers:
+.long intr_handlers_table
+EOF

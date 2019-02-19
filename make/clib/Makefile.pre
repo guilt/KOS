@@ -1,0 +1,8 @@
+clib_objs+=obj/minilib.o
+
+DEFINES=
+C_DEFINES=
+
+CFLAGS+=-I. -Iclib/include -nostdinc -fno-builtin $(DEFINES)
+ASFLAGS+=-I. -Iclib/include -nostdinc -fno-builtin $(DEFINES)
+LDFLAGS+=-L. -nostdlib -fno-builtin

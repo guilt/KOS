@@ -1,0 +1,13 @@
+kkrn_objs=
+kkrn_libs=
+kkrn_exe=bin/kkrn
+
+klib_objs+=obj/minilib.o
+kkrn_objs+=obj/kernel.o obj/multiboot.o
+
+DEFINES=
+KERN_DEFINES=-DKERNEL
+
+CFLAGS+=-I. -Iclib/include -nostdinc -fno-builtin $(DEFINES)
+ASFLAGS+=-I. -Iclib/include -nostdinc -fno-builtin $(DEFINES)
+LDFLAGS+=-L. -nostdlib -fno-builtin

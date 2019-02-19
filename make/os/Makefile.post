@@ -1,0 +1,18 @@
+TARGET_CFLAGS+=-DPLAT=$(PLAT) -DARCH=$(ARCH) -I$(TARGET)/include -I$(TARGET)/include/$(PLAT) -I$(TARGET)/include/$(ARCH) $(PLAT_CFLAGS) $(ARCH_CFLAGS) $(KERN_DEFINES)
+TARGET_ASFLAGS+=-DPLAT=$(PLAT) -DARCH=$(ARCH) -I$(TARGET)/include -I$(TARGET)/include/$(PLAT) -I$(TARGET)/include/$(ARCH) $(PLAT_CFLAGS) $(ARCH_CFLAGS) $(KERN_DEFINES)
+TARGET_LDFLAGS+=$(ARCH_LDFLAGS)
+
+target: os_binary
+
+os_binary: $(kkrn_exe)
+
+$(kkrn_exe): $(kkrn_objs) 
+	 $(LD) $(TARGET_LDFLAGS) $(LDFLAGS) -o "$@" $(kkrn_objs) $(klib_objs)
+ifdef DEBUG
+else
+	$(STRIP) "$@"
+endif
+
+target_clean:
+	$(RM) $(kkrn_objs) $(klib_objs) $(kkrn_exe)
+

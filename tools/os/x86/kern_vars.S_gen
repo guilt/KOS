@@ -1,0 +1,12 @@
+#!/bin/sh
+
+cat <<EOF
+#define ASM	1
+.text
+.align 8
+.globl vars,_vars
+vars:
+_vars:
+.long kernel_vars
+EOF
+

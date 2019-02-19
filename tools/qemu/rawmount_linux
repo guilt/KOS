@@ -1,0 +1,155 @@
+#!/usr/bin/perl
+
+use strict;
+use integer;
+
+sub error {
+  print STDERR "@_\n";
+  exit -1;
+}
+
+sub err_usage() {
+  error "Usage: $0 rawfile [mountpoint partition]";
+}
+
+sub exec_cmd {
+  my $cmdstr="@_";
+  my $status=system $cmdstr;
+  if($status != 0) {
+    my $cmdstr="sudo @_";
+    my $status=system $cmdstr;
+  }
+  return $status;
+}
+
+sub exec_cmd_pipe {
+  my $fd;
+  open( FD, "@_ 2>&1 |" ) and $fd=\*FD or open( FD, "sudo @_ 2>&1 |" ) and $fd=\*FD;
+  return $fd;
+} 
+
+sub loop_info() {
+  my $info={};
+  my $fd=exec_cmd_pipe "losetup", "-a";
+  while(<$fd>) {
+    chomp $_;
+    if(/^\s*([^:]+):.*$/) {
+      my $loopdev=$1;
+      $info->{$loopdev}="true";
+    }
+  }
+  close $fd;
+  return $info;
+}
+
+sub file_size($) {
+ my $file=shift;
+ my $fd=exec_cmd_pipe "ls", "-la", $file;
+ my $size=-1;
+ while(<$fd>) {
+   chomp $_;
+   if(/(^[\w\-]+)\s+(\d+)\s+(\w+)\s+(\w+)\s+(\d+)\s+([\d\-]+)\s+([\d\:]+)\s+(.*)$/) {
+     my $gotfile=$8;
+     if($gotfile eq $file) {
+       $size=$5;
+     }
+   }
+ }
+ close $fd;
+ return $size;
+}
+
+sub part_info($) {
+  my $drive=shift;
+  my $fd=exec_cmd_pipe "fdisk", "-l", "-u", $drive;
+  my $info={}; 
+  my $counter=1;
+  while(<$fd>) {
+    chomp $_;
+    if(/^\s*([^\s]+)\s+(\*?)\s+(\d+)\s+(\d+)\s+(\d+)(\+?)\s+([^\s]+)\s+(.*)$/) {
+      my $device=$counter;
+      $counter = $counter + 1;
+      $info->{$device}={};
+      $info->{$device}->{"start"}=$3;
+      $info->{$device}->{"end"}=$4;
+      $info->{$device}->{"bootable"}=0;
+      if($2 =~ /^\*$/) {
+	$info->{$device}->{"bootable"}=1;
+      }
+      $info->{$device}->{"id"}=$7;
+    }
+    if(/^Units\s+=[^=]*=\s+(\d+).*$/) {
+      $info->{"sectorsize"}=$1;
+    }
+  }
+  close $fd;
+  return $info;
+}
+
+sub unset_loopdev($) { my $mount_dev=shift; exec_cmd "losetup", "-d", $mount_dev; }
+
+sub set_loopdev { my $mount_dev=shift; my $mount_file=shift; exec_cmd "losetup", $mount_dev, $mount_file, @_; }
+
+sub mount { exec_cmd "mount", @_; } 
+
+sub main {
+  my $diskfile=shift;
+  my $mountpoint=shift;
+  my $part=shift || 0;
+  if(! $diskfile ) {
+    err_usage;
+  }
+  if($part > 0 && ! $mountpoint ) {
+    err_usage;
+  }
+  if (! -f $diskfile) {
+   error "File: $diskfile not found or not a file";
+  }
+  if ($part > 0 && ! -d $mountpoint) {
+   error "Mountpoint: $mountpoint not found or not a directory";
+  }
+  my $offset=0;
+  my $size=file_size $diskfile;
+  my $partinfo;
+  {
+    my $loopinfo=loop_info;
+    my $nloopinfo=(%$loopinfo);
+    if(!$nloopinfo) { 
+	$partinfo=part_info $diskfile;	
+    } else {
+       my $loopdev, my $i=0, my $loopprefix="/dev/loop";
+       while(1) {
+	$loopdev=$loopprefix.$i;
+	if($loopinfo->{$loopdev}) {
+	  print STDERR "$loopdev not available.\n";
+	} else {
+	  if(! -e $loopdev) {
+	    error "No loop device available at the moment.";
+	  } else {
+            set_loopdev $loopdev, $diskfile, "-o", $offset;
+	    if($part <= 0) {
+	       print $loopdev,"\n";
+	       return 0;
+	    }
+            $partinfo=part_info $loopdev;
+            unset_loopdev $loopdev;
+            last;
+         }
+      }
+      $i=$i+1;
+     }
+   }
+   if(!$partinfo) { error "Unable to recover paritition information"; }
+   if(!$partinfo->{$part}) { error "Partition information not available for: $part"; }
+  }
+  {
+    my $sectorsize=$partinfo->{"sectorsize"} || 512;
+    my $sectorstart=$partinfo->{$part}->{"start"};
+    my $sectorend=$partinfo->{$part}->{"end"};
+    $offset=$offset+($sectorsize*$sectorstart);
+    $size=($sectorsize*($sectorend+1-$sectorstart));
+  }
+  return mount "-o", "loop", "-o", "offset=$offset", $diskfile, $mountpoint, "2>/dev/null";
+}
+
+exit main @ARGV;
