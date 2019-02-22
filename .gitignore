@@ -1,0 +1,4 @@
+bin/*
+obj/*
+default.rawdisk
+default.vdi

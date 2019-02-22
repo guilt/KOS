@@ -1,24 +1,24 @@
 MOUNT:=tools/qemu/rawmount
 UMOUNT:=sudo umount
+CP=sudo cp
 TMPDIR=/tmp/qemu
 DEV:="bin/default.rawdisk"
-QARCH:=i386
+QARCH?=i386
+QEMU?=qemu-system-$(QARCH)
 PART=1
-SYNC=sync; sleep 1
+CURSES=1
 
 install: os_binary
 	$(MKDIR) $(TMPDIR) && \
 	$(MOUNT) $(DEV) $(TMPDIR) $(PART) && \
 	$(MKDIR) $(TMPDIR)/kos/ && \
 	$(CP) $(kkrn_exe) $(TMPDIR)/kos/ && \
-	$(SYNC) && \
 	$(UMOUNT) $(TMPDIR) && \
-	$(SYNC) && \
 	$(RMDIR) $(TMPDIR)
 
 DBG_CMD=echo "No Debugging."
 DBG_FLAGS=
-RUN_CMD=qemu-system-$(QARCH)
+RUN_CMD=${QEMU}
 RUN_FLAGS=
 WAIT_CMD=echo -n
 

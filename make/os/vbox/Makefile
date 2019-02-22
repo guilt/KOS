@@ -1,9 +1,9 @@
 MOUNT:=tools/vbox/vdimount
 UMOUNT:=sudo umount
+CP=sudo cp
 TMPDIR=/tmp/vdi
 DEV:="bin/default.vdi"
 PART=1
-SYNC=sync; sleep 1
 PATH+=:tools/vbox
 
 install: os_binary
@@ -11,9 +11,7 @@ install: os_binary
 	$(MOUNT) $(DEV) $(TMPDIR) $(PART) && \
 	$(MKDIR) $(TMPDIR)/kos/ && \
 	$(CP) $(kkrn_exe) $(TMPDIR)/kos/ && \
-	$(SYNC) && \
 	$(UMOUNT) $(TMPDIR) && \
-	$(SYNC) && \
 	$(RMDIR) $(TMPDIR)
 
 tests: install

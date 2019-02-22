@@ -69,4 +69,6 @@ obj/$(ARCH)/%.o: $(TARGET)/src/$(ARCH)/%.c
 
 clean: target_clean cleansrc
 
+install: target
+
 tests: target
